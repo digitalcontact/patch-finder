@@ -4,6 +4,7 @@ import networkx as nx
 import numpy as np
 from Bio.PDB import PDBParser, ShrakeRupley
 from Bio.PDB.Polypeptide import is_aa
+import csv
 
 def get_CA_coords(residue):
     if residue.has_id('CA'):
@@ -21,14 +22,18 @@ def get_residue_id(residue):
 def main():
     parser = argparse.ArgumentParser(description='Identify surface amino acids and combinatory patches using graphs')
     parser.add_argument('pdb_file', help='Input PDB file')
-    parser.add_argument('X', type=int, help='Number of amino acids in a patch (group size)')
-    parser.add_argument('Y', type=float, help='Distance threshold (A)')
-    parser.add_argument('-o', '--output', help='Output file to store valid combinations', default='output.txt')
+    parser.add_argument('min_X', type=int, help='Minimum number of amino acids in a patch (group size)')
+    parser.add_argument('max_X', type=int, help='Maximum number of amino acids in a patch (group size)')
+    parser.add_argument('min_Y', type=float, help='Minimum distance threshold (A)')
+    parser.add_argument('max_Y', type=float, help='Maximum distance threshold (A)')
+    parser.add_argument('-o', '--output', help='Output file to store valid combinations', default='output.csv')
     args = parser.parse_args()
 
     pdb_file = args.pdb_file
-    X = args.X
-    Y = args.Y
+    min_X = args.min_X
+    max_X = args.max_X
+    min_Y = args.min_Y
+    max_Y = args.max_Y
     output_file = args.output
 
     # Parse the PDB file
@@ -55,8 +60,8 @@ def main():
                         residue_coords.append(coord)
 
     # Check if there are enough residues to form combinations
-    if len(surface_residues) < X:
-        print(f"Not enough surface residues to form combinations of {X}.")
+    if len(surface_residues) < min_X:
+        print(f"Not enough surface residues to form combinations of {min_X}.")
         return
 
     # Build graph
@@ -65,23 +70,27 @@ def main():
     for idx, residue in enumerate(surface_residues):
         G.add_node(idx, residue=residue)
 
-    # Add edges between residues within distance Y
+    # Add edges between residues within distance range [min_Y, max_Y]
     for i in tqdm(range(len(surface_residues))):
         for j in range(i+1, len(surface_residues)):
             dist = np.linalg.norm(residue_coords[i] - residue_coords[j])
-            if dist <= Y:
-                G.add_edge(i, j)
+            if min_Y <= dist <= max_Y:
+                G.add_edge(i, j, distance=dist)
 
     print("Finding groups...")
-    # Find cliques of size X
-    cliques = [clique for clique in nx.find_cliques(G) if len(clique) == X]
+    # Find cliques of size between min_X and max_X
+    cliques = [clique for clique in nx.find_cliques(G) if min_X <= len(clique) <= max_X]
 
     # Open the output file
-    with open(output_file, 'w') as f_out:
+    with open(output_file, 'w', newline='') as f_out:
+        writer = csv.writer(f_out)
+        writer.writerow(['Num_AA', 'Avg_Distance', 'Residues'])
         for clique in cliques:
             residues = [G.nodes[node]['residue'] for node in clique]
             res_ids = [get_residue_id(residue) for residue in residues]
-            f_out.write(', '.join(res_ids) + '\n')
+            distances = [G.edges[edge]['distance'] for edge in nx.utils.pairwise(clique)]
+            avg_distance = np.mean(distances) if distances else 0
+            writer.writerow([len(clique), f"{avg_distance:.2f}", ', '.join(res_ids)])
 
     print(f"Valid combinations have been written to {output_file}")
 

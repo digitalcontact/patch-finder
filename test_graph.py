@@ -6,8 +6,8 @@ from Bio.PDB.Chain import Chain
 from Bio.PDB.Model import Model
 from Bio.PDB.Residue import Residue
 from Bio.PDB.Structure import Structure
-from unittest.mock import MagicMock
-from graph import get_CA_coords, get_residue_id
+from unittest.mock import MagicMock, patch
+from graph import get_CA_coords, get_residue_id, main
 
 class TestSurfaceResidueIdentification(unittest.TestCase):
 
@@ -54,7 +54,7 @@ class TestSurfaceResidueIdentification(unittest.TestCase):
             for j in range(i + 1, len(surface_residues)):
                 dist = np.linalg.norm(coords[i] - coords[j])
                 if dist <= 5:
-                    G.add_edge(i, j)
+                    G.add_edge(i, j, distance=dist)
 
         # Test that graph contains correct number of nodes and edges
         self.assertEqual(len(G.nodes), 2)
@@ -72,7 +72,11 @@ class TestSurfaceResidueIdentification(unittest.TestCase):
         self.assertEqual(len(cliques), 1)
         self.assertEqual(len(cliques[0]), 3)
 
-    def test_full_pipeline(self):
+    @patch('graph.PDBParser')
+    @patch('graph.ShrakeRupley')
+    @patch('graph.open', new_callable=unittest.mock.mock_open)
+    @patch('graph.csv.writer')
+    def test_full_pipeline(self, mock_csv_writer, mock_open, MockShrakeRupley, MockPDBParser):
         # Mock structure creation
         structure = Structure("test_structure")
         model = Model(0)
@@ -83,14 +87,28 @@ class TestSurfaceResidueIdentification(unittest.TestCase):
         model.add(chain)
         structure.add(model)
 
-        # Mock PDBParser
-        mock_parser = MagicMock()
+        # Mock PDBParser and ShrakeRupley
+        mock_parser = MockPDBParser.return_value
         mock_parser.get_structure.return_value = structure
+        mock_sr = MockShrakeRupley.return_value
 
-        # Test logic similar to main function
-        # Example: Check if structure is parsed and correct number of residues are found
-        structure = mock_parser.get_structure('protein', 'dummy.pdb')
-        self.assertEqual(len([r for r in chain]), 1)  # One residue should be parsed
+        # Mock SASA computation
+        self.residue_with_ca.sasa = 1.0  # Set a non-zero SASA value
+
+        # Run the main function with mock arguments
+        test_args = ['graph.py', 'dummy.pdb', '1', '3', '4.0', '8.0', '-o', 'output.csv']
+        with patch('sys.argv', test_args):
+            main()
+
+        # Check if the structure was parsed
+        mock_parser.get_structure.assert_called_once_with('protein', 'dummy.pdb')
+
+        # Check if SASA was computed
+        mock_sr.compute.assert_called_once_with(structure, level='R')
+
+        # Check if the output file was written correctly
+        mock_open.assert_called_once_with('output.csv', 'w', newline='')
+        mock_csv_writer.return_value.writerow.assert_any_call(['Num_AA', 'Avg_Distance', 'Residues'])
 
 if __name__ == '__main__':
     unittest.main()
