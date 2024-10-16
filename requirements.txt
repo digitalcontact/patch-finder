@@ -1,0 +1,4 @@
+biopython==1.84
+numpy==2.1.2
+tqdm==4.66.5
+networkx==3.4.1
