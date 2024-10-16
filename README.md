@@ -33,11 +33,7 @@ pip install tqdm networkx numpy biopython matplotlib
 Run the tool using the following command:
 
 ```bash
-python
-
-graph.py
-
- <pdb_file> <min_X> <max_X> <min_Y> <max_Y> [-o output_file]
+python graph.py <pdb_file> <min_X> <max_X> <min_Y> <max_Y> [-o output_file]
 ```
 
 ### Arguments:
