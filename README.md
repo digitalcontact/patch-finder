@@ -52,11 +52,7 @@ graph.py
 ### Example:
 
 ```bash
-python
-
-graph.py
-
- 1abc.pdb 3 5 4.0 8.0 -o patches.csv
+python graph.py example/6os0_D.pdb 3 5 4.0 8.0 -o patches.csv
 ```
 
 This example identifies patches of 3 to 5 surface residues, where each residue is within 4.0 Å to 8.0 Å of another in the same patch. The valid patches will be written to `patches.csv`.
@@ -80,11 +76,7 @@ For example:
 To visualize the output data, use the `plot_output.py` script:
 
 ```bash
-python
-
-plot_output.py
-
- <csv_file> <output_image_histogram> <output_image_boxplot> <output_image_bar>
+python plot_output.py <csv_file> <output_image_histogram> <output_image_boxplot> <output_image_bar>
 ```
 
 ### Arguments:
@@ -97,11 +89,7 @@ plot_output.py
 ### Example:
 
 ```bash
-python
-
-plot_output.py
-
- patches.csv histogram.png boxplot.png barplot.png
+python plot_output.py patches.csv histogram.png boxplot.png barplot.png
 ```
 
 This example generates a histogram, box plot, and bar plot from the data in `patches.csv` and saves them as `histogram.png`, `boxplot.png`, and `barplot.png` respectively.
